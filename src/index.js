@@ -12,7 +12,7 @@ const {
     removePlayer,
 } = require('./utils/players.js');
 
-const { setGame } = require('./utils/game.js');
+const { getGameStatus, setGame, setGameStatus } = require('./utils/game.js');
 
 const app = express();
 const server = http.createServer(app);
@@ -75,6 +75,43 @@ io.on('connection', socket => {
         }
     });
 
+    socket.on('sendAnswer', (answer, callback) => {
+        const { error, player } = getPlayer(socket.id);
+
+        if (error) return callback(error.message);
+
+        if (player) {
+            const { isRoundOver } = setGameStatus({
+                event: 'sendAnswer',
+                playerId: player.id,
+                room: player.room,
+            });
+
+            io.to(player.room).emit('answer', {
+                ...formatMessage(player.playerName, answer),
+                isRoundOver,
+            });
+
+            callback();
+        }
+    });
+
+    socket.on('getAnswer', (data, callback) => {
+        const { error, player } = getPlayer(socket.id);
+
+        if (error) return callback(error.message);
+
+        if (player) {
+            const { correctAnswer } = getGameStatus({
+                event: 'getAnswer',
+            });
+            io.to(player.room).emit(
+                'correctAnswer',
+                formatMessage(player.playerName, correctAnswer)
+            );
+        }
+    });
+
     socket.on('disconnect', () => {
         console.log('A player disconnected.');
 
@@ -96,7 +133,7 @@ io.on('connection', socket => {
 });
 
 const port = process.env.PORT || 8080;
-const host = 'localhost'
+const host = 'localhost';
 
 server.listen(port, host, () => {
     console.log(`Server is running on http://${host}:${port}`);
