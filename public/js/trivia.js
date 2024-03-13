@@ -25,19 +25,36 @@ socket.emit('join', { playerName, room }, error => {
     }
 });
 
-socket.on("message", ({ playerName, text, createdAt }) => {
+socket.on('message', ({ playerName, text, createdAt }) => {
 
-    const chatMessages = document.querySelector(".chat__messages");
+    const chatMessages = document.querySelector('.chat__messages');
 
-    const messageTemplate = document.querySelector("#message-template").innerHTML;
+    const messageTemplate = document.querySelector('#message-template').innerHTML;
 
     const template = Handlebars.compile(messageTemplate);
 
     const html = template({
         playerName,
         text,
-        createdAt: moment(createdAt).format("h:mm a"),
+        createdAt: moment(createdAt).format('h:mm a'),
     });
 
-    chatMessages.insertAdjacentHTML("afterBegin", html);
+    chatMessages.insertAdjacentHTML('afterBegin', html);
+});
+
+socket.on('room', ({ room, players }) => {
+    const gameInfo = document.querySelector('.game-info');
+
+    const sidebarTemplate = document.querySelector(
+        '#game-info-template'
+    ).innerHTML;
+
+    const template = Handlebars.compile(sidebarTemplate);
+
+    const html = template({
+        room,
+        players,
+    });
+
+    gameInfo.innerHTML = html;
 });

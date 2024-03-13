@@ -12,6 +12,7 @@ const {
 } = require("./utils/players.js");
 
 const port = process.env.PORT || 8080;
+const host = 'localhost';
 
 const app = express();
 const server = http.createServer(app);
@@ -32,9 +33,40 @@ io.on('connection', socket => {
         socket.join(newPlayer.room);
 
         socket.emit('message', formatMessage('Admin', 'Welcome!'));
-    });
-})
 
-server.listen(port, () => {
-    console.log(`Server is up on port ${port}.`);
+        socket.broadcast
+            .to(newPlayer.room)
+            .emit(
+                'message',
+                formatMessage('Admin', `${newPlayer.playerName} has joined the game!`)
+            );
+
+        io.in(newPlayer.room).emit('room', {
+            room: newPlayer.room,
+            players: getAllPlayers(newPlayer.room),
+        });
+    });
+
+    socket.on("disconnect", () => {
+        console.log("A player disconnected.");
+
+        const disconnectedPlayer = removePlayer(socket.id);
+
+        if (disconnectedPlayer) {
+            const { playerName, room } = disconnectedPlayer;
+            io.in(room).emit(
+                "message",
+                formatMessage("Admin", `${playerName} has left!`)
+            );
+
+            io.in(room).emit("room", {
+                room,
+                players: getAllPlayers(room),
+            });
+        }
+    });
+});
+
+server.listen(port, host, () => {
+    console.log(`Server is running on http://${host}:${port}`);
 });
