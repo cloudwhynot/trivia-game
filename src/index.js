@@ -2,17 +2,17 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const socketio = require('socket.io');
-const formatMessage = require("./utils/formatMessage.js");
+
+const formatMessage = require('./utils/formatMessage.js');
 
 const {
     addPlayer,
     getAllPlayers,
     getPlayer,
     removePlayer,
-} = require("./utils/players.js");
+} = require('./utils/players.js');
 
-const port = process.env.PORT || 8080;
-const host = 'localhost';
+const { setGame } = require('./utils/game.js');
 
 const app = express();
 const server = http.createServer(app);
@@ -47,39 +47,56 @@ io.on('connection', socket => {
         });
     });
 
-    socket.on("disconnect", () => {
-        console.log("A player disconnected.");
-
-        const disconnectedPlayer = removePlayer(socket.id);
-
-        if (disconnectedPlayer) {
-            const { playerName, room } = disconnectedPlayer;
-            io.in(room).emit(
-                "message",
-                formatMessage("Admin", `${playerName} has left!`)
-            );
-
-            io.in(room).emit("room", {
-                room,
-                players: getAllPlayers(room),
-            });
-        }
-    });
-
-    socket.on("sendMessage", (message, callback) => {
+    socket.on('sendMessage', (message, callback) => {
         const { error, player } = getPlayer(socket.id);
 
         if (error) return callback(error.message);
 
         if (player) {
             io.to(player.room).emit(
-                "message",
+                'message',
                 formatMessage(player.playerName, message)
             );
             callback();
         }
     });
+
+    socket.on('getQuestion', async (data, callback) => {
+        const { error, player } = getPlayer(socket.id);
+
+        if (error) return callback(error.message);
+
+        if (player) {
+            const game = await setGame();
+            io.to(player.room).emit('question', {
+                playerName: player.playerName,
+                ...game.prompt,
+            });
+        }
+    });
+
+    socket.on('disconnect', () => {
+        console.log('A player disconnected.');
+
+        const disconnectedPlayer = removePlayer(socket.id);
+
+        if (disconnectedPlayer) {
+            const { playerName, room } = disconnectedPlayer;
+            io.in(room).emit(
+                'message',
+                formatMessage('Admin', `${playerName} has left!`)
+            );
+
+            io.in(room).emit('room', {
+                room,
+                players: getAllPlayers(room),
+            });
+        }
+    });
 });
+
+const port = process.env.PORT || 8080;
+const host = 'localhost'
 
 server.listen(port, host, () => {
     console.log(`Server is running on http://${host}:${port}`);
